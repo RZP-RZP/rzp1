@@ -1,6 +1,5 @@
-{
-  "stage":"数据准备阶段",
-  "time":"2026‑08‑28",
-  "task":"数据集整理、预处理脚本编写",
-  "notes":"冲压数据集存放在 data/data/raw/stamping_raw_sample.csv，预处理脚本scripts/data_preprocess.py"
-}
+## 数据准备阶段
+- 数据集存放路径：data/data/raw/stamping_raw_sample.csv
+- 数据集说明文档：data/data/DATA_README.md
+- 预处理脚本：scripts/data_preprocess.py，运行脚本生成处理后数据。
+- AI对话日志存放于 prompt/ 目录。
