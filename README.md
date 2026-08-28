@@ -1,2 +1,7 @@
 # rzp1
 课设1
+## 数据准备阶段
+数据集存放路径：data/data/raw/stamping_raw_sample.csv
+数据集说明文档：data/data/DATA_README.md
+预处理脚本：scripts/data_preprocess.py，运行脚本生成处理后数据。
+AI对话日志存放于 prompt/ 目录。
