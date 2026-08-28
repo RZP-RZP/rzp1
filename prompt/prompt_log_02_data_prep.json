@@ -1,0 +1,6 @@
+{
+  "stage":"数据准备阶段",
+  "time":"2026‑08‑28",
+  "task":"数据集整理、预处理脚本编写",
+  "notes":"冲压数据集存放在 data/data/raw/stamping_raw_sample.csv，预处理脚本scripts/data_preprocess.py"
+}
