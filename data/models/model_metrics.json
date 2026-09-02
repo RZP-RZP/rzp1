@@ -1,27 +1,27 @@
 {
   "crack": {
     "name": "开裂",
-    "accuracy": 0.8438
+    "accuracy": 0.9643
   },
   "wrinkle": {
     "name": "起皱",
-    "accuracy": 0.9062
+    "accuracy": 0.8929
   },
   "springback": {
     "name": "回弹",
-    "accuracy": 0.9688
+    "accuracy": 0.9643
   },
-  "average_accuracy": 0.9062,
-  "hamming_loss": 0.0938,
+  "average_accuracy": 0.9405,
+  "hamming_loss": 0.0595,
   "sample_count": {
-    "train": 74,
-    "test": 32
+    "train": 130,
+    "test": 56
   },
   "feature_importance": {
-    "sheet_thickness": 0.2737,
-    "blank_holder_force": 0.1603,
-    "stamping_speed": 0.0725,
-    "friction_coeff": 0.2306,
-    "die_gap": 0.263
+    "sheet_thickness": 0.3189,
+    "blank_holder_force": 0.1876,
+    "stamping_speed": 0.1336,
+    "friction_coeff": 0.1433,
+    "die_gap": 0.2166
   }
 }

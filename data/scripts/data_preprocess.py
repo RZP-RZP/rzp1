@@ -9,12 +9,15 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 import os
+import joblib
 
 def main():
     # 文件路径
     raw_path = "./data/data/raw/stamping_raw_sample.csv"
     out_dir = "./data/data/processed"
+    model_dir = "./data/models"
     os.makedirs(out_dir, exist_ok=True)
+    os.makedirs(model_dir, exist_ok=True)
 
     # 1读取原始数据
     df_raw = pd.read_csv(raw_path, encoding="utf-8")
@@ -51,6 +54,11 @@ def main():
     test_out = os.path.join(out_dir,"stamping_test.csv")
     df_train.to_csv(train_out,index=False,encoding="utf-8")
     df_test.to_csv(test_out,index=False,encoding="utf-8")
+
+    # 保存归一化器，供预测时使用
+    scaler_path = os.path.join(model_dir, "scaler.pkl")
+    joblib.dump(scaler, scaler_path)
+    print(f"归一化器已保存:{scaler_path}")
 
     print(f"训练集已输出:{train_out} 行数{len(df_train)}")
     print(f"测试集已输出:{test_out} 行数{len(df_test)}")

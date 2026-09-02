@@ -12,7 +12,7 @@ import joblib
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)
 
-from app import app, FEATURE_COLS, LABEL_COLS, MODEL_PATH, DB_PATH
+from app import app, FEATURE_COLS, LABEL_COLS, MODEL_PATH, SCALER_PATH, DB_PATH
 
 PASSED = 0
 FAILED = 0
@@ -38,14 +38,23 @@ def test_model_exists():
     assert os.path.exists(MODEL_PATH), f"模型文件不存在: {MODEL_PATH}"
 
 
+@test_case("归一化器文件存在")
+def test_scaler_exists():
+    assert os.path.exists(SCALER_PATH), f"归一化器文件不存在: {SCALER_PATH}"
+
+
 @test_case("模型可加载并预测")
 def test_model_predict():
     model = joblib.load(MODEL_PATH)
-    X = pd.DataFrame([[1.2, 300, 150, 0.12, 1.1]], columns=FEATURE_COLS)
-    pred = model.predict(X)
-    assert pred.shape == (1, 3), f"预测输出形状错误: {pred.shape}"
-    for v in pred[0]:
-        assert v in [0, 1], f"预测值非0/1: {v}"
+    scaler = joblib.load(SCALER_PATH)
+    assert isinstance(model, dict), "模型应为字典格式（每个标签一个模型）"
+    for col in LABEL_COLS:
+        assert col in model, f"缺少标签模型: {col}"
+    X_raw = pd.DataFrame([[1.2, 300, 150, 0.12, 1.1]], columns=FEATURE_COLS)
+    X = pd.DataFrame(scaler.transform(X_raw), columns=FEATURE_COLS)
+    for col in LABEL_COLS:
+        pred = model[col].predict(X)
+        assert pred[0] in [0, 1], f"{col}预测值非0/1: {pred[0]}"
 
 
 @test_case("数据库文件存在")
@@ -189,6 +198,7 @@ def main():
 
     print("[模型与数据]")
     test_model_exists()
+    test_scaler_exists()
     test_model_predict()
     test_db_exists()
     test_db_tables()

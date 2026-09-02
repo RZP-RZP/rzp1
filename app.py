@@ -16,6 +16,7 @@ app = Flask(__name__)
 # 路径配置
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "data", "models", "stamping_model.pkl")
+SCALER_PATH = os.path.join(BASE_DIR, "data", "models", "scaler.pkl")
 METRICS_PATH = os.path.join(BASE_DIR, "data", "models", "model_metrics.json")
 DB_PATH = os.path.join(BASE_DIR, "data", "db", "stamping.db")
 TRAIN_PATH = os.path.join(BASE_DIR, "data", "data", "processed", "stamping_train.csv")
@@ -41,8 +42,9 @@ PARAM_RANGES = {
     "die_gap": (0.8, 1.6)
 }
 
-# 加载模型
+# 加载模型和归一化器
 model = joblib.load(MODEL_PATH)
+scaler = joblib.load(SCALER_PATH)
 
 
 def get_db():
@@ -89,19 +91,21 @@ def predict():
         # 异常检测
         warnings = anomaly_detect(params)
 
-        # 模型预测
-        X = pd.DataFrame([params], columns=FEATURE_COLS)
-        pred = model.predict(X)[0]
-        proba = model.predict_proba(X)
-
-        # 提取各标签概率（正类概率）
+        # 模型预测（先归一化，再用每个标签单独的逻辑回归模型预测）
+        X_raw = pd.DataFrame([params], columns=FEATURE_COLS)
+        X = pd.DataFrame(scaler.transform(X_raw), columns=FEATURE_COLS)
+        pred_list = []
         probs = {}
-        for i, col in enumerate(LABEL_COLS):
-            probs[col] = round(float(proba[i][0][1]), 4) if len(proba[i][0]) > 1 else 0.0
+        for col in LABEL_COLS:
+            m = model[col]
+            p = int(m.predict(X)[0])
+            prob = float(m.predict_proba(X)[0][1]) if len(m.classes_) > 1 else 0.0
+            pred_list.append(p)
+            probs[col] = round(prob, 4)
 
         result = {
             "predictions": {
-                col: {"name": LABEL_NAMES[col], "value": int(pred[i]), "prob": probs[col]}
+                col: {"name": LABEL_NAMES[col], "value": int(pred_list[i]), "prob": probs[col]}
                 for i, col in enumerate(LABEL_COLS)
             },
             "warnings": warnings,
@@ -119,7 +123,7 @@ def predict():
             """, (
                 params["sheet_thickness"], params["blank_holder_force"],
                 params["stamping_speed"], params["friction_coeff"], params["die_gap"],
-                int(pred[0]), int(pred[1]), int(pred[2]),
+                int(pred_list[0]), int(pred_list[1]), int(pred_list[2]),
                 probs["crack"], probs["wrinkle"], probs["springback"],
                 result["timestamp"]
             ))
