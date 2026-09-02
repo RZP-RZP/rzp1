@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>冲压质量智能预测系统</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <div class="logo-icon">冲</div>
+            <span>冲压质量智能预测系统</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="/" class="active">质量预测</a></li>
+            <li><a href="/analysis">数据分析</a></li>
+            <li><a href="/history">预测记录</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <h1 class="page-title">冲压成形质量预测</h1>
+
+        <div class="card">
+            <div class="card-title">工艺参数输入</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>板料厚度 <span class="range">(0.8~2.0 mm)</span></label>
+                    <input type="number" id="sheet_thickness" step="0.01" value="1.2" min="0.5" max="3.0">
+                </div>
+                <div class="form-group">
+                    <label>压边力 <span class="range">(150~450 kN)</span></label>
+                    <input type="number" id="blank_holder_force" step="1" value="300" min="50" max="700">
+                </div>
+                <div class="form-group">
+                    <label>冲压速度 <span class="range">(80~220 mm/s)</span></label>
+                    <input type="number" id="stamping_speed" step="1" value="150" min="50" max="300">
+                </div>
+                <div class="form-group">
+                    <label>摩擦系数 <span class="range">(0.05~0.25)</span></label>
+                    <input type="number" id="friction_coeff" step="0.001" value="0.12" min="0.01" max="0.5">
+                </div>
+                <div class="form-group">
+                    <label>模具间隙 <span class="range">(0.8~1.6 mm)</span></label>
+                    <input type="number" id="die_gap" step="0.01" value="1.1" min="0.5" max="2.5">
+                </div>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="doPredict()">开始预测</button>
+                <button class="btn btn-secondary" onclick="resetForm()">重置参数</button>
+            </div>
+        </div>
+
+        <div id="result-area" style="display:none;">
+            <div id="warning-area"></div>
+            <div class="card">
+                <div class="card-title">预测结果</div>
+                <div class="result-grid" id="result-cards"></div>
+                <p style="margin-top:16px;font-size:13px;color:#999;" id="predict-time"></p>
+            </div>
+        </div>
+
+        <div id="loading-area" style="display:none;">
+            <div class="card">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>模型预测中，请稍候...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function getParams() {
+            return {
+                sheet_thickness: parseFloat(document.getElementById('sheet_thickness').value),
+                blank_holder_force: parseFloat(document.getElementById('blank_holder_force').value),
+                stamping_speed: parseFloat(document.getElementById('stamping_speed').value),
+                friction_coeff: parseFloat(document.getElementById('friction_coeff').value),
+                die_gap: parseFloat(document.getElementById('die_gap').value)
+            };
+        }
+
+        function doPredict() {
+            const params = getParams();
+            // 简单校验
+            for (const key in params) {
+                if (isNaN(params[key])) {
+                    alert('请填写所有参数');
+                    return;
+                }
+            }
+
+            document.getElementById('result-area').style.display = 'none';
+            document.getElementById('loading-area').style.display = 'block';
+
+            fetch('/api/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(params)
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('loading-area').style.display = 'none';
+                if (data.success) {
+                    renderResult(data.data);
+                } else {
+                    alert('预测失败: ' + data.error);
+                }
+            })
+            .catch(err => {
+                document.getElementById('loading-area').style.display = 'none';
+                alert('请求失败: ' + err);
+            });
+        }
+
+        function renderResult(data) {
+            document.getElementById('result-area').style.display = 'block';
+
+            // 警告
+            const warningArea = document.getElementById('warning-area');
+            if (data.warnings && data.warnings.length > 0) {
+                warningArea.innerHTML = `
+                    <div class="warning-box">
+                        <div class="warning-title">⚠ 工艺参数异常提醒</div>
+                        <ul>${data.warnings.map(w => `<li>${w}</li>`).join('')}</ul>
+                    </div>
+                `;
+            } else {
+                warningArea.innerHTML = '';
+            }
+
+            // 结果卡片
+            const cards = document.getElementById('result-cards');
+            const preds = data.predictions;
+            cards.innerHTML = Object.keys(preds).map(key => {
+                const p = preds[key];
+                const isDanger = p.value === 1;
+                return `
+                    <div class="result-card ${isDanger ? 'danger' : 'safe'}">
+                        <div class="result-label">${p.name}</div>
+                        <div class="result-value">${isDanger ? '存在风险' : '正常'}</div>
+                        <div class="result-prob">风险概率: ${(p.prob * 100).toFixed(1)}%</div>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('predict-time').textContent = '预测时间: ' + data.timestamp;
+        }
+
+        function resetForm() {
+            document.getElementById('sheet_thickness').value = 1.2;
+            document.getElementById('blank_holder_force').value = 300;
+            document.getElementById('stamping_speed').value = 150;
+            document.getElementById('friction_coeff').value = 0.12;
+            document.getElementById('die_gap').value = 1.1;
+            document.getElementById('result-area').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

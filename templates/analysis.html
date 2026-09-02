@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据分析 - 冲压质量智能预测系统</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <div class="logo-icon">冲</div>
+            <span>冲压质量智能预测系统</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="/">质量预测</a></li>
+            <li><a href="/analysis" class="active">数据分析</a></li>
+            <li><a href="/history">预测记录</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <h1 class="page-title">数据集分析与模型评估</h1>
+
+        <div class="stats-grid" id="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="stat-total">-</div>
+                <div class="stat-label">训练样本总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-acc">-</div>
+                <div class="stat-label">模型平均准确率</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-hamming">-</div>
+                <div class="stat-label">Hamming Loss</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-features">-</div>
+                <div class="stat-label">输入特征数</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">质量缺陷标签分布</div>
+            <div class="chart-row">
+                <div id="chart-label-dist" class="chart-container"></div>
+                <div id="chart-feature-importance" class="chart-container"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">工艺参数分布直方图</div>
+            <div class="chart-row">
+                <div id="chart-thickness" class="chart-container"></div>
+                <div id="chart-force" class="chart-container"></div>
+            </div>
+            <div class="chart-row" style="margin-top:24px;">
+                <div id="chart-speed" class="chart-container"></div>
+                <div id="chart-friction" class="chart-container"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">各标签预测准确率</div>
+            <div id="chart-label-acc" class="chart-container" style="height:280px;"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">特征统计信息</div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>特征名称</th>
+                        <th>均值</th>
+                        <th>标准差</th>
+                        <th>最小值</th>
+                        <th>最大值</th>
+                    </tr>
+                </thead>
+                <tbody id="feature-stats-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const FEATURE_NAMES = {
+            sheet_thickness: '板料厚度(mm)',
+            blank_holder_force: '压边力(kN)',
+            stamping_speed: '冲压速度(mm/s)',
+            friction_coeff: '摩擦系数',
+            die_gap: '模具间隙(mm)'
+        };
+        const LABEL_NAMES = { crack: '开裂', wrinkle: '起皱', springback: '回弹' };
+
+        let analysisData = null;
+
+        function loadAnalysis() {
+            fetch('/api/analysis')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        analysisData = data.data;
+                        renderAll();
+                    }
+                });
+        }
+
+        function renderAll() {
+            const d = analysisData;
+            document.getElementById('stat-total').textContent = d.total_samples;
+            document.getElementById('stat-acc').textContent = (d.metrics.average_accuracy * 100).toFixed(1) + '%';
+            document.getElementById('stat-hamming').textContent = d.metrics.hamming_loss;
+            document.getElementById('stat-features').textContent = '5';
+
+            // 标签分布
+            const labelChart = echarts.init(document.getElementById('chart-label-dist'));
+            labelChart.setOption({
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                legend: { data: ['存在缺陷', '正常'], top: 0 },
+                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                xAxis: { type: 'category', data: Object.keys(d.label_dist).map(k => LABEL_NAMES[k]) },
+                yAxis: { type: 'value', name: '样本数' },
+                series: [
+                    { name: '存在缺陷', type: 'bar', stack: 'total', itemStyle: { color: '#ff4d4f' },
+                      data: Object.keys(d.label_dist).map(k => d.label_dist[k].positive) },
+                    { name: '正常', type: 'bar', stack: 'total', itemStyle: { color: '#52c41a' },
+                      data: Object.keys(d.label_dist).map(k => d.label_dist[k].negative) }
+                ]
+            });
+
+            // 特征重要性
+            const impChart = echarts.init(document.getElementById('chart-feature-importance'));
+            const impKeys = Object.keys(d.metrics.feature_importance);
+            impChart.setOption({
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                xAxis: { type: 'value', name: '重要性' },
+                yAxis: { type: 'category', data: impKeys.map(k => FEATURE_NAMES[k]).reverse() },
+                series: [{
+                    type: 'bar',
+                    itemStyle: { color: '#1a73e8' },
+                    data: impKeys.map(k => d.metrics.feature_importance[k]).reverse()
+                }]
+            });
+
+            // 直方图
+            const histConfigs = [
+                { id: 'chart-thickness', key: 'sheet_thickness' },
+                { id: 'chart-force', key: 'blank_holder_force' },
+                { id: 'chart-speed', key: 'stamping_speed' },
+                { id: 'chart-friction', key: 'friction_coeff' }
+            ];
+            histConfigs.forEach(cfg => {
+                const hist = d.feature_hist[cfg.key];
+                const chart = echarts.init(document.getElementById(cfg.id));
+                chart.setOption({
+                    title: { text: hist.name, left: 'center', textStyle: { fontSize: 14 } },
+                    tooltip: { trigger: 'axis' },
+                    grid: { left: '8%', right: '5%', bottom: '10%' },
+                    xAxis: { type: 'category', data: hist.bins, name: '取值区间' },
+                    yAxis: { type: 'value', name: '频数' },
+                    series: [{ type: 'bar', itemStyle: { color: '#1a73e8' }, data: hist.counts }]
+                });
+            });
+
+            // 各标签准确率
+            const accChart = echarts.init(document.getElementById('chart-label-acc'));
+            accChart.setOption({
+                tooltip: { trigger: 'axis' },
+                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                xAxis: { type: 'category', data: Object.keys(d.metrics).filter(k => ['crack','wrinkle','springback'].includes(k)).map(k => LABEL_NAMES[k]) },
+                yAxis: { type: 'value', name: '准确率', max: 1, min: 0 },
+                series: [{
+                    type: 'bar',
+                    itemStyle: { color: '#52c41a' },
+                    label: { show: true, position: 'top', formatter: p => (p.value * 100).toFixed(1) + '%' },
+                    data: ['crack','wrinkle','springback'].map(k => d.metrics[k].accuracy)
+                }]
+            });
+
+            // 特征统计表
+            const tbody = document.getElementById('feature-stats-body');
+            tbody.innerHTML = Object.keys(d.feature_stats).map(k => {
+                const s = d.feature_stats[k];
+                return `<tr>
+                    <td>${s.name}</td>
+                    <td>${s.mean}</td>
+                    <td>${s.std}</td>
+                    <td>${s.min}</td>
+                    <td>${s.max}</td>
+                </tr>`;
+            }).join('');
+
+            window.addEventListener('resize', () => {
+                labelChart.resize(); impChart.resize(); accChart.resize();
+            });
+        }
+
+        loadAnalysis();
+    </script>
+</body>
+</html>

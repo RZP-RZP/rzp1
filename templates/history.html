@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>预测记录 - 冲压质量智能预测系统</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <div class="logo-icon">冲</div>
+            <span>冲压质量智能预测系统</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="/">质量预测</a></li>
+            <li><a href="/analysis">数据分析</a></li>
+            <li><a href="/history" class="active">预测记录</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <h1 class="page-title">预测历史记录</h1>
+
+        <div class="card">
+            <div class="card-title">全部预测记录 <span id="total-count" style="font-size:13px;color:#999;font-weight:normal;"></span></div>
+            <div id="table-area">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>加载中...</p>
+                </div>
+            </div>
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </div>
+
+    <script>
+        const FEATURE_NAMES = {
+            sheet_thickness: '板厚',
+            blank_holder_force: '压边力',
+            stamping_speed: '冲压速度',
+            friction_coeff: '摩擦系数',
+            die_gap: '模具间隙'
+        };
+        const LABEL_NAMES = { crack: '开裂', wrinkle: '起皱', springback: '回弹' };
+
+        let currentPage = 1;
+        const pageSize = 10;
+        let totalRecords = 0;
+
+        function loadHistory(page) {
+            currentPage = page;
+            document.getElementById('table-area').innerHTML = `
+                <div class="loading"><div class="spinner"></div><p>加载中...</p></div>
+            `;
+
+            fetch(`/api/history?page=${page}&size=${pageSize}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        totalRecords = data.data.total;
+                        renderTable(data.data.records);
+                        renderPagination();
+                    }
+                });
+        }
+
+        function renderTable(records) {
+            const area = document.getElementById('table-area');
+            document.getElementById('total-count').textContent = `(共 ${totalRecords} 条)`;
+
+            if (records.length === 0) {
+                area.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📋</div>
+                        <p>暂无预测记录，请先在"质量预测"页面进行预测</p>
+                    </div>
+                `;
+                return;
+            }
+
+            area.innerHTML = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>板厚(mm)</th>
+                            <th>压边力(kN)</th>
+                            <th>冲压速度</th>
+                            <th>摩擦系数</th>
+                            <th>模具间隙</th>
+                            <th>开裂</th>
+                            <th>起皱</th>
+                            <th>回弹</th>
+                            <th>预测时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${records.map(r => `
+                            <tr>
+                                <td>${r.id}</td>
+                                <td>${r.params.sheet_thickness}</td>
+                                <td>${r.params.blank_holder_force}</td>
+                                <td>${r.params.stamping_speed}</td>
+                                <td>${r.params.friction_coeff}</td>
+                                <td>${r.params.die_gap}</td>
+                                <td>${renderTag(r.predictions.crack.value)}</td>
+                                <td>${renderTag(r.predictions.wrinkle.value)}</td>
+                                <td>${renderTag(r.predictions.springback.value)}</td>
+                                <td>${r.created_at}</td>
+                                <td><button class="btn btn-danger" onclick="deleteRecord(${r.id})">删除</button></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function renderTag(value) {
+            if (value === 1) {
+                return '<span class="tag tag-danger">有风险</span>';
+            }
+            return '<span class="tag tag-safe">正常</span>';
+        }
+
+        function renderPagination() {
+            const totalPages = Math.ceil(totalRecords / pageSize);
+            const pg = document.getElementById('pagination');
+
+            if (totalPages <= 1) {
+                pg.innerHTML = '';
+                return;
+            }
+
+            let html = `<button onclick="loadHistory(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>上一页</button>`;
+            for (let i = 1; i <= totalPages; i++) {
+                html += `<button class="${i === currentPage ? 'active' : ''}" onclick="loadHistory(${i})">${i}</button>`;
+            }
+            html += `<button onclick="loadHistory(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>下一页</button>`;
+            pg.innerHTML = html;
+        }
+
+        function deleteRecord(id) {
+            if (!confirm('确定删除这条记录吗？')) return;
+            fetch(`/api/history/${id}`, { method: 'DELETE' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        loadHistory(currentPage);
+                    } else {
+                        alert('删除失败: ' + data.error);
+                    }
+                });
+        }
+
+        loadHistory(1);
+    </script>
+</body>
+</html>

@@ -1,7 +1,6 @@
 {
   "stage": "数据准备阶段",
   "dataset_path": "data/data/raw/stamping_raw_sample.csv",
-  "processed_dataset_dir": "data/data/processed/",
   "readme_doc": "data/data/DATA_README.md",
   "preprocess_script": "data/scripts/data_preprocess.py",
   "log_dir": "prompt/"

@@ -1,0 +1,27 @@
+{
+  "crack": {
+    "name": "开裂",
+    "accuracy": 0.8438
+  },
+  "wrinkle": {
+    "name": "起皱",
+    "accuracy": 0.9062
+  },
+  "springback": {
+    "name": "回弹",
+    "accuracy": 0.9688
+  },
+  "average_accuracy": 0.9062,
+  "hamming_loss": 0.0938,
+  "sample_count": {
+    "train": 74,
+    "test": 32
+  },
+  "feature_importance": {
+    "sheet_thickness": 0.2737,
+    "blank_holder_force": 0.1603,
+    "stamping_speed": 0.0725,
+    "friction_coeff": 0.2306,
+    "die_gap": 0.263
+  }
+}

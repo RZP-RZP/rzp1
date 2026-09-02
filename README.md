@@ -1,11 +1,134 @@
-rzp1
+# 冲压质量智能预测系统
 
-课设1
+制造智能技术课程设计项目——基于机器学习的板料冲压成形质量预测系统。
 
-# 数据准备阶段
-- 原始数据集存放路径：`data/data/raw/stamping_raw_sample.csv`
-- 预处理后数据集存放路径：`data/data/processed/`，包含训练集 stamping_train.csv、测试集 stamping_test.csv
-- 数据集说明文档：`data/data/DATA_README.md`
-- 预处理脚本：`data/scripts/data_preprocess.py`，运行脚本生成处理后数据。
-- AI对话日志存放于 `prompt/` 目录。
+## 项目简介
 
+本系统针对板料冲压成形过程中的三类常见缺陷（开裂、起皱、回弹），基于随机森林多标签分类算法构建质量预测模型。用户输入板料厚度、压边力、冲压速度、摩擦系数、模具间隙五项工艺参数，系统即可预测缺陷风险并给出概率，同时提供工艺参数异常检测、数据集分析可视化、预测历史管理等功能。
+
+系统采用B/S架构，前端使用HTML+CSS+JavaScript+ECharts，后端使用Python Flask，数据库使用SQLite。
+
+## 技术方向（覆盖课程3个技术方向）
+
+1. **监督学习**：随机森林多标签分类，预测开裂/起皱/回弹缺陷
+2. **异常检测**：基于工艺知识的参数范围校验，异常参数提醒
+3. **数据可视化**：特征分布、标签分布、特征重要性、模型评估图表
+
+## 快速开始
+
+### 环境要求
+- Python 3.8+
+- 现代浏览器（Chrome/Edge/Firefox）
+
+### 一键启动（Windows）
+双击 `run.bat`，脚本会自动：
+1. 检查并安装依赖
+2. 检查模型文件（不存在则自动训练）
+3. 检查数据库（不存在则自动初始化）
+4. 启动Web服务
+
+启动后浏览器访问：http://127.0.0.1:5000
+
+### 手动启动
+```bash
+# 安装依赖
+pip install -r requirements.txt
+
+# 数据预处理（可选，已提供处理后数据）
+python data/scripts/data_preprocess.py
+
+# 训练模型（可选，已提供训练好的模型）
+python data/scripts/train_model.py
+
+# 初始化数据库（可选，已提供数据库文件）
+python data/scripts/init_db.py
+
+# 启动服务
+python app.py
+```
+
+### 运行测试
+```bash
+python test_app.py
+```
+
+## 目录结构
+
+```
+rzp1-main/
+├── app.py                          # Flask后端主程序
+├── run.bat                         # 一键启动脚本
+├── test_app.py                     # 自动化测试脚本
+├── requirements.txt                # 依赖清单
+├── README.md                       # 项目说明
+├── 需求规格说明书.md
+├── 设计报告.md
+├── 选题说明.md
+├── 方案设计.md
+├── 学习笔记.md
+├── data/
+│   ├── data/
+│   │   ├── raw/stamping_raw_sample.csv      # 原始数据集（120条）
+│   │   ├── processed/                        # 预处理后数据
+│   │   │   ├── stamping_train.csv            # 训练集（74条）
+│   │   │   └── stamping_test.csv             # 测试集（32条）
+│   │   └── DATA_README.md                    # 数据集说明
+│   ├── scripts/
+│   │   ├── data_preprocess.py                # 数据预处理
+│   │   ├── train_model.py                    # 模型训练
+│   │   └── init_db.py                        # 数据库初始化
+│   ├── models/
+│   │   ├── stamping_model.pkl                # 训练好的模型
+│   │   └── model_metrics.json                # 模型评估指标
+│   └── db/stamping.db                        # SQLite数据库
+├── templates/
+│   ├── index.html                            # 质量预测页
+│   ├── analysis.html                         # 数据分析页
+│   └── history.html                          # 预测记录页
+├── static/css/style.css
+└── prompt/                                   # AI对话日志
+```
+
+## 功能说明
+
+### 1. 质量预测
+- 输入5项工艺参数，预测开裂/起皱/回弹风险
+- 显示每项缺陷的风险概率
+- 绿色=正常，红色=有风险
+
+### 2. 异常检测
+- 自动检查参数是否在工艺合理范围内
+- 超范围参数以黄色警告框提醒
+
+### 3. 数据分析
+- 训练样本统计、模型准确率等核心指标
+- 缺陷标签分布、特征重要性排序
+- 工艺参数分布直方图
+- 各标签预测准确率对比
+
+### 4. 预测记录
+- 自动保存所有预测记录
+- 分页浏览，支持删除
+- 预测结果标签化展示
+
+## 模型性能
+
+| 指标 | 值 |
+|------|-----|
+| 平均准确率 | 90.62% |
+| Hamming Loss | 0.0938 |
+| 开裂准确率 | 84.38% |
+| 起皱准确率 | 90.62% |
+| 回弹准确率 | 96.88% |
+
+## 数据说明
+
+本项目数据集为参考冲压成形工艺理论、在合理工艺区间内采样构造的**模拟数据集**，非企业真实采集数据。数据集共120条样本，包含缺失值和异常值用于演示预处理流程。
+
+## 提交物清单
+
+- [x] 代码仓库（含完整提交历史、运行脚本、README）
+- [x] 需求规格说明书
+- [x] 设计报告
+- [x] 过程档案（prompt日志）
+- [ ] 3分钟演示视频（需自行录制）
